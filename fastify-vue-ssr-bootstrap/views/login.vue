@@ -1,4 +1,3 @@
-<template>
 <div class="container mt-16 text-center">
   <div class="row justify-content-center">
     <div class="col-align-self-center col-sm-12 col-md-10 col-lg-8" style="max-width: 500px;">
@@ -90,24 +89,3 @@
     </div>
   </div>
 </div>
-</template>
-
-<script setup>
-const user = ref('')
-const password = ref('')
-const passwordVisible = ref (false)
-const hasToken = ref(false)
-const schoolName = ref('Demo School')
-const errorCode= ref(null)
-const classroom = ref(null)
-
-const classrooms = [
-  { displayName : 'My Classroom 1', id: 1},
-  { displayName : 'My Classroom 2', id: 2},
-  { displayName : 'My Classroom 3', id: 3},
-]
-
-const login = () => {
-  console.log ("Click on login!")
-}
-</script>

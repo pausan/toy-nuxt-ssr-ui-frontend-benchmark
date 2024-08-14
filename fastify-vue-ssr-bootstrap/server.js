@@ -1,11 +1,12 @@
-// -----------------------------------------------------------------------------
-// Copyright @ 2024 Pau Sanchez
-//
-// MIT License
-// -----------------------------------------------------------------------------
-const fastify = require("fastify");
-const path = require("node:path");
-const fs = require("node:fs");
+import fastify from 'fastify'
+import fs from 'node:fs'
+import path from 'node:path'
+
+// Vue's server-rendering API is exposed under `vue/server-renderer`.
+import { createSSRApp } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+
+const __dirname = import.meta.dirname;
 
 // -----------------------------------------------------------------------------
 // Render a basic layout
@@ -28,7 +29,9 @@ const renderLayout = (title, contents) => {
   </head>
   <body>
 
+  <div id="app">
   ${contents}
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
@@ -38,45 +41,28 @@ const renderLayout = (title, contents) => {
 }
 
 // -----------------------------------------------------------------------------
-// John Resig micro-templating
-// See: https://johnresig.com/blog/javascript-micro-templating/
-// -----------------------------------------------------------------------------
-function compileTemplate(str){
-
-  const code =  // biome-ignore lint/style/useTemplate: <explanation>
-  "var p=[],print=function(){p.push.apply(p,arguments);};" +
-
-  // Introduce the data as local variables using with(){}
-  "with(obj){p.push('" +
-
-  // Convert the template into pure JavaScript
-  str
-  .replace(/[\r\t\n]/g, " ")
-  .split("<%").join("\t")
-  .replace(/((^|%>)[^\t]*)'/g, "$1\r")
-  .replace(/\t=(.*?)%>/g, "',$1,'")
-  .split("\t").join("');")
-  .split("%>").join("p.push('")
-  .split("\r").join("\\'")
-  + "');}return p.join('');"
-
-  return new Function("obj", code);
-}
-
-// -----------------------------------------------------------------------------
 // All views
 // -----------------------------------------------------------------------------
 const g_views = {
-  'login': compileTemplate(fs.readFileSync(path.join(__dirname, 'views/login.html'), 'utf8')),
-  'not-found': compileTemplate('Not Found!'),
+  'login': fs.readFileSync(path.join(__dirname, 'views/login.vue'), 'utf8'),
+  'not-found': 'Not Found!',
 }
 
 // -----------------------------------------------------------------------------
 // Render a view by name
 // -----------------------------------------------------------------------------
-const renderView = (view, data) => {
-  const fn = g_views[view] || g_views['not-found'];
-  return fn(data)
+const renderView = async (view, data) => {
+  const templateString = g_views[view] || g_views['not-found'];
+
+  // NOTE to self
+  // Looks like there is no pre-compile step, however renderToString ends up
+  // calling ssrCompile which has an internal cache for the template
+  const app = createSSRApp({
+    data: () => data,
+    template: templateString
+  })
+
+  return await renderToString(app);
 }
 
 // -----------------------------------------------------------------------------
@@ -100,9 +86,12 @@ async function start(port) {
       ]
     }
 
+    // NOTE: going to ignore client hydration since we only want to measure the
+    //       server performance, otherwise a lot of extra boilerplate should be
+    //       added to the code
     reply.type("text/html").send(
       renderLayout('Login Title',
-        renderView('login', schoolData)
+        await renderView('login', schoolData)
       )
     );
   });
@@ -121,3 +110,17 @@ async function start(port) {
 }
 
 start(3000);
+/*
+(async () => {
+  for (let i = 0; i < 2; i++) {
+    const app = createSSRApp({
+      data: () => { counter : 0} ,
+      template: `<div>
+        <h1>{{ counter }}</h1>
+        <button @click="counter++">Increment</button>
+        </div>`
+    })
+
+    console.log(await renderToString(app))
+  }
+})()*/
